@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:ffi';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:fluttertoast/fluttertoast.dart';
 void main() {
   runApp(const MyApp());
 }
@@ -40,23 +42,38 @@ class _MyHomePageState extends State<MyHomePage> {
     if (cep == '') {
       return;
     }
-    
-    _getApi(cep).then((value) {
-      setState(() {
-        logradouro = value['logradouro'];
-        cidade = value['localidade'];
-        bairro = value['bairro'];
-        estado = value['uf'];
-      });
-    });
 
+    _getApi(cep).then((value) {
+      var body = value['body'];
+      setState(() {
+        logradouro = (value['status'] == 200) ? body['logradouro'] : "Não encontrado!";
+        cidade = (value['status'] == 200) ?  body['localidade'] : "Não encontrado!";
+        bairro = (value['status'] == 200) ? body['bairro'] : "Não encontrado!";
+        estado = (value['status'] == 200) ? body['uf'] : "Não encontrado!";
+      });
+      
+      String message = (value['status'] == 200) ? "Sucesso ao consultar os dados do CEP!" : "Erro ao consultar os dados do CEP!";
+      Color color_toast = (value['status'] == 200) ? Theme.of(context).primaryColor : Colors.red;
+
+      Fluttertoast.showToast(msg: message, backgroundColor: color_toast);
+    });
   }
 
   Future _getApi(String cep) async {
     final response = await http.get(Uri.parse("https://viacep.com.br/ws/${cep}/json/"));
 
+    if (response.body.contains("<!DOCTYPE HTML>")) {
+      return {
+        "status": 400,
+        "body": null
+      };
+    }
+
     var body = jsonDecode(response.body);
-    return body;
+    return {
+      "status": 200,
+      "body": body
+    };
   }
 
   @override
